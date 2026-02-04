@@ -2,267 +2,288 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Idle Clicker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body{
-  margin:0;
-  font-family:Arial, sans-serif;
-  background:linear-gradient(135deg,#4f7cff,#6be6c1);
-  min-height:100vh;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-}
-.card{
-  background:white;
-  padding:18px;
-  border-radius:14px;
-  width:95%;
-  max-width:380px;
-  box-shadow:0 10px 30px rgba(0,0,0,.2);
-}
-h3{margin:12px 0 6px;}
-input,button{
-  width:100%;
-  padding:10px;
-  margin:6px 0;
-  font-size:16px;
-}
-button{
-  border:none;
-  border-radius:8px;
-  background:#4f7cff;
-  color:white;
-  font-weight:bold;
-  cursor:pointer;
-}
-button:disabled{opacity:.5}
+body{margin:0;font-family:Arial;background:#111;color:#fff}
+.hidden{display:none}
+button{padding:10px;margin:5px 0;width:100%;background:#222;color:#fff;border:1px solid #444;cursor:pointer}
+button:hover{background:#333}
+input{padding:10px;width:100%;margin:5px 0}
 #circle{
-  width:140px;
-  height:140px;
-  background:#4f7cff;
-  border-radius:50%;
-  margin:10px auto;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:white;
-  font-size:22px;
-  user-select:none;
-  cursor:pointer;
+  width:160px;height:160px;border-radius:50%;
+  background:#444;display:flex;align-items:center;justify-content:center;
+  font-size:22px;user-select:none;margin:20px auto
 }
-.section{
-  border-top:1px solid #ddd;
-  margin-top:10px;
-  padding-top:6px;
+#circle:active{transform:scale(0.95)}
+.layout{display:flex}
+.menu{width:90px;display:flex;flex-direction:column}
+.main{flex:1;padding:10px}
+.panel{display:none}
+.panel.active{display:block}
+.section{border:1px solid #333;padding:10px;margin:10px 0}
+.popup{
+  background:#222;border:1px solid #555;padding:10px;margin:10px 0
+}
+@media(max-width:600px){
+  .layout{flex-direction:column}
+  .menu{flex-direction:row;width:100%}
 }
 </style>
 </head>
 
 <body>
 
-<div class="card" id="auth">
-  <h2>Login</h2>
-  <input id="username" placeholder="Username">
-  <input id="password" type="password" placeholder="Password">
-  <button onclick="login()">Login</button>
+<!-- LOGIN -->
+<div id="loginScreen">
+  <h2>Login / Register</h2>
+  <input id="user" placeholder="Username">
+  <input id="pass" type="password" placeholder="Password">
+  <label>
+    <input type="checkbox" id="remember"> Remember me
+  </label>
+  <button onclick="doLogin()">Login</button>
   <button onclick="register()">Register</button>
-  <p id="authMsg"></p>
 </div>
 
-<div class="card" id="game" style="display:none">
+<!-- GAME -->
+<div id="game" class="hidden">
   <h2 id="welcome"></h2>
-  <div id="circle">CLICK</div>
-  <p id="counter"></p>
-  <p id="stats"></p>
-  <p id="rebirthText"></p>
 
-  <div class="section">
-    <h3>Click Upgrades</h3>
-    <button id="x2btn" onclick="buyX2()"></button>
+  <div class="layout">
+    <div class="menu">
+      <button onclick="showPanel('shop')">Upgrades</button>
+      <button onclick="showPanel('stats')">Stats</button>
+      <button onclick="showPanel('achievements')">Ach</button>
+      <button onclick="showPanel('daily')">Daily</button>
+    </div>
+
+    <div class="main">
+      <div id="offlinePopup" class="popup hidden"></div>
+
+      <div id="circle">CLICK</div>
+      <p id="counter"></p>
+      <p id="cps"></p>
+
+      <!-- SHOP -->
+      <div id="shop" class="panel active">
+        <div class="section">
+          <h3>Click Upgrade</h3>
+          <button id="clickBtn" onclick="buyClickMult()"></button>
+        </div>
+
+        <div class="section">
+          <h3>Auto Clicker</h3>
+          <button id="autoBtn" onclick="buyAuto()"></button>
+          <button id="speedBtn" onclick="buyAutoSpeed()"></button>
+        </div>
+      </div>
+
+      <!-- STATS -->
+      <div id="statsPanel" class="panel">
+        <p>Total Clicks: <span id="totalClicks"></span></p>
+      </div>
+
+      <!-- ACHIEVEMENTS -->
+      <div id="achievementsPanel" class="panel">
+        <p id="achText"></p>
+      </div>
+
+      <!-- DAILY -->
+      <div id="dailyPanel" class="panel">
+        <button id="dailyBtn" onclick="claimDaily()"></button>
+      </div>
+
+      <!-- ADMIN -->
+      <div id="adminPanel" class="section hidden">
+        <h3>Admin</h3>
+        <button onclick="devReset()">Reset Progress</button>
+        <button onclick="give10k()">Give 10K</button>
+      </div>
+
+      <button onclick="logout()">Logout</button>
+    </div>
   </div>
-
-  <div class="section">
-    <h3>Auto Clickers</h3>
-    <button id="autobtn" onclick="buyAuto()"></button>
-    <button id="speedbtn" onclick="buySpeed()"></button>
-  </div>
-
-  <div class="section">
-    <h3>Rebirth</h3>
-    <button id="rebirthBtn" onclick="rebirth()"></button>
-  </div>
-
-  <!-- ADMIN PANEL -->
-  <div class="section" id="adminPanel" style="display:none">
-    <h3>Admin Controls</h3>
-    <button onclick="wipeAllPlayers()">⚠ Wipe ALL Players</button>
-    <button onclick="adminReset()">Reset Admin Progress</button>
-    <button onclick="adminGiveMoney()">Give Admin 10K Clicks</button>
-  </div>
-
-  <button onclick="logout()">Logout</button>
 </div>
 
 <script>
-/* ===== ADMIN ===== */
-const ADMIN_USERNAME="John";
-const ADMIN_PASSWORD="developers2012";
-let isAdmin=false;
-
 /* ===== STORAGE ===== */
-const getAccounts=()=>JSON.parse(localStorage.getItem("accounts")||"{}");
-const saveAccounts=a=>localStorage.setItem("accounts",JSON.stringify(a));
+let users = JSON.parse(localStorage.getItem("users") || "{}");
+let rememberedUser = localStorage.getItem("rememberUser");
+
+/* ===== STATE ===== */
 let currentUser=null;
-
-/* ===== GAME DATA ===== */
-let clicks=0,multiplier=1,x2Cost=25;
+let clicks=0,total=0,clickMult=1;
 let auto=0,autoCost=100;
-let autoInterval=1000,speedCost=250;
-let rebirths=0,rebirthCost=1000;
-let autoLoop;
+let autoSpeed=1000,speedCost=250;
+let clickCost=50;
+let lastDaily=0;
+let lastOnline=Date.now();
 
-/* ===== AUTH ===== */
+/* ===== LOGIN ===== */
+function doLogin(){
+  let u=user.value.trim();
+  let p=pass.value;
+  if(!users[u] || users[u].pass!==p){
+    alert("Invalid username or password");
+    return;
+  }
+  if(remember.checked) localStorage.setItem("rememberUser",u);
+  else localStorage.removeItem("rememberUser");
+  loadUser(u);
+}
 function register(){
-  if(username.value===ADMIN_USERNAME){
-    authMsg.textContent="Reserved username"; return;
-  }
-  const a=getAccounts();
-  if(a[username.value]) return authMsg.textContent="User exists";
-  a[username.value]={password:password.value,data:{}};
-  saveAccounts(a);
-  authMsg.textContent="Account created";
+  let u=user.value.trim();
+  let p=pass.value;
+  if(users[u]) return alert("User exists");
+  users[u]={pass:p,save:{}};
+  saveUsers();
+  loadUser(u);
+}
+function loadUser(u){
+  currentUser=u;
+  let s=users[u].save||{};
+  clicks=s.clicks||0;
+  total=s.total||0;
+  clickMult=s.clickMult||1;
+  auto=s.auto||0;
+  autoCost=s.autoCost||100;
+  autoSpeed=s.autoSpeed||1000;
+  speedCost=s.speedCost||250;
+  clickCost=s.clickCost||50;
+  lastDaily=s.lastDaily||0;
+  lastOnline=s.lastOnline||Date.now();
+
+  loginScreen.classList.add("hidden");
+  game.classList.remove("hidden");
+  welcome.textContent="Welcome "+u;
+
+  if(u==="John") adminPanel.classList.remove("hidden");
+
+  handleOfflineEarnings();
+  startAuto();
+  update();
+}
+function logout(){
+  save();
+  localStorage.removeItem("rememberUser");
+  location.reload();
 }
 
-function login(){
-  const a=getAccounts();
-
-  if(username.value===ADMIN_USERNAME && password.value===ADMIN_PASSWORD){
-    isAdmin=true;
-    if(!a[ADMIN_USERNAME]) a[ADMIN_USERNAME]={password:ADMIN_PASSWORD,data:{}};
-    saveAccounts(a);
-    currentUser=ADMIN_USERNAME;
-    loadGame(a[ADMIN_USERNAME].data);
-    adminPanel.style.display="block";
-    welcome.textContent="Admin: John";
-  } else {
-    if(!a[username.value]||a[username.value].password!==password.value){
-      authMsg.textContent="Wrong login"; return;
-    }
-    isAdmin=false;
-    currentUser=username.value;
-    loadGame(a[currentUser].data);
-    adminPanel.style.display="none";
-    welcome.textContent="Welcome "+currentUser;
-  }
-
-  auth.style.display="none";
-  game.style.display="block";
-}
-
-/* ===== SAVE / LOAD ===== */
-function saveGame(){
-  const a=getAccounts();
-  a[currentUser].data={
-    clicks,multiplier,x2Cost,auto,autoCost,
-    autoInterval,speedCost,rebirths,rebirthCost
+/* ===== SAVE ===== */
+function save(){
+  users[currentUser].save={
+    clicks,total,clickMult,auto,
+    autoCost,autoSpeed,speedCost,
+    clickCost,lastDaily,lastOnline:Date.now()
   };
-  saveAccounts(a);
+  saveUsers();
+}
+function saveUsers(){
+  localStorage.setItem("users",JSON.stringify(users));
 }
 
-function loadGame(d){
-  clicks=d.clicks||0;
-  multiplier=d.multiplier||1;
-  x2Cost=d.x2Cost||25;
-  auto=d.auto||0;
-  autoCost=d.autoCost||100;
-  autoInterval=d.autoInterval||1000;
-  speedCost=d.speedCost||250;
-  rebirths=d.rebirths||0;
-  rebirthCost=d.rebirthCost||1000;
-  restartAuto();
-  updateUI();
+/* ===== OFFLINE EARNINGS ===== */
+function handleOfflineEarnings(){
+  let now=Date.now();
+  let diff=Math.min(now-lastOnline,8*60*60*1000); // max 8h
+  let seconds=Math.floor(diff/1000);
+  let earned=seconds*(auto*clickMult);
+  if(earned>0){
+    clicks+=earned;
+    total+=earned;
+    offlinePopup.textContent=`Offline earnings: +${earned} clicks`;
+    offlinePopup.classList.remove("hidden");
+    setTimeout(()=>offlinePopup.classList.add("hidden"),5000);
+  }
 }
+
+/* ===== CLICK ===== */
+circle.onclick=()=>{
+  clicks+=clickMult;
+  total+=clickMult;
+  update();
+}
+
+/* ===== UPGRADES ===== */
+function buyClickMult(){
+  if(clicks<clickCost)return;
+  clicks-=clickCost;
+  clickMult+=1;
+  clickCost=Math.floor(clickCost*1.5);
+  update();
+}
+function buyAuto(){
+  if(clicks<autoCost)return;
+  clicks-=autoCost;
+  auto+=1;
+  autoCost=Math.floor(autoCost*1.7);
+  update();
+}
+function buyAutoSpeed(){
+  if(clicks<speedCost||autoSpeed<=200)return;
+  clicks-=speedCost;
+  autoSpeed-=100;
+  speedCost=Math.floor(speedCost*1.6);
+  startAuto();
+  update();
+}
+
+/* ===== AUTO ===== */
+let autoLoop=null;
+function startAuto(){
+  if(autoLoop) clearInterval(autoLoop);
+  autoLoop=setInterval(()=>{
+    clicks+=auto*clickMult;
+    total+=auto*clickMult;
+    update();
+  },autoSpeed);
+}
+
+/* ===== DAILY ===== */
+function claimDaily(){
+  let now=Date.now();
+  if(now-lastDaily<86400000)return alert("Come back tomorrow");
+  clicks+=500;
+  lastDaily=now;
+  update();
+}
+
+/* ===== ADMIN ===== */
+function devReset(){
+  if(!confirm("Reset progress?"))return;
+  clicks=0;total=0;clickMult=1;
+  auto=0;autoCost=100;autoSpeed=1000;
+  speedCost=250;clickCost=50;
+  update();
+}
+function give10k(){clicks+=10000;update()}
 
 /* ===== UI ===== */
-function updateUI(){
+function update(){
   counter.textContent="Clicks: "+clicks;
-  stats.textContent=`Multiplier: ${multiplier}× | Auto: ${auto}`;
-  rebirthText.textContent=`Rebirths: ${rebirths} (x${2**rebirths})`;
-  x2btn.textContent=`Buy 2× (${x2Cost})`;
-  autobtn.textContent=`Auto Clicker (${autoCost})`;
-  speedbtn.textContent=`Auto Speed (${speedCost})`;
-  rebirthBtn.textContent=`Rebirth (${rebirthCost})`;
-  saveGame();
+  cps.textContent="CPS: "+(auto*clickMult);
+  clickBtn.textContent="Upgrade +1 | Cost: "+clickCost;
+  autoBtn.textContent="Auto +1 | Cost: "+autoCost;
+  speedBtn.textContent="Speed Upgrade | Cost: "+speedCost;
+  totalClicks.textContent=total;
+  dailyBtn.textContent="Claim 500 clicks";
+  achText.textContent=total>=1000?"Achievement unlocked!":"Click more!";
+  save();
+}
+function showPanel(p){
+  document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+  if(p==="shop")shop.classList.add("active");
+  if(p==="stats")statsPanel.classList.add("active");
+  if(p==="achievements")achievementsPanel.classList.add("active");
+  if(p==="daily")dailyPanel.classList.add("active");
 }
 
-/* ===== GAME ===== */
-circle.onclick=()=>{
-  clicks+=multiplier*(2**rebirths);
-  updateUI();
-};
-
-function buyX2(){ if(clicks>=x2Cost){ clicks-=x2Cost; multiplier*=2; x2Cost=Math.floor(x2Cost*1.6); updateUI(); }}
-function buyAuto(){ if(clicks>=autoCost){ clicks-=autoCost; auto++; autoCost=Math.floor(autoCost*1.5); restartAuto(); updateUI(); }}
-function buySpeed(){ if(clicks>=speedCost&&autoInterval>200){ clicks-=speedCost; autoInterval-=100; speedCost=Math.floor(speedCost*1.7); restartAuto(); updateUI(); }}
-
-function restartAuto(){
-  clearInterval(autoLoop);
-  autoLoop=setInterval(()=>{
-    clicks+=auto*multiplier*(2**rebirths);
-    updateUI();
-  },autoInterval);
+/* ===== AUTO LOGIN ===== */
+if(rememberedUser && users[rememberedUser]){
+  loadUser(rememberedUser);
 }
-
-function rebirth(){
-  if(clicks>=rebirthCost){
-    rebirths++;
-    clicks=0;
-    multiplier=1;
-    auto=0;
-    x2Cost=25;
-    autoCost=100;
-    autoInterval=1000;
-    speedCost=250;
-    rebirthCost*=2;
-    restartAuto();
-    updateUI();
-  }
-}
-
-/* ===== ADMIN ACTIONS ===== */
-function wipeAllPlayers(){
-  if(!isAdmin) return;
-  if(confirm("Wipe ALL players?")){
-    const a=getAccounts();
-    for(const u in a){ if(u!==ADMIN_USERNAME) a[u].data={}; }
-    saveAccounts(a);
-    alert("All players wiped");
-  }
-}
-
-function adminReset(){
-  if(!isAdmin) return;
-  if(confirm("Reset ADMIN progress?")){
-    clicks=0;
-    multiplier=1;
-    auto=0;
-    rebirths=0;
-    rebirthCost=1000;
-    updateUI();
-  }
-}
-
-function adminGiveMoney(){
-  if(!isAdmin) return;
-  clicks+=10000;
-  updateUI();
-}
-
-function logout(){ saveGame(); location.reload(); }
 </script>
-
 </body>
 </html>
