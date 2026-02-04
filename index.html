@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Idle Clicker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{margin:0;font-family:Arial;background:#111;color:#fff}
+.hidden{display:none}
+button{padding:10px;margin:5px 0;width:100%;background:#222;color:#fff;border:1px solid #444;cursor:pointer}
+button:hover{background:#333}
+input{padding:10px;width:100%;margin:5px 0}
+#circle{
+  width:160px;height:160px;border-radius:50%;
+  background:#444;display:flex;align-items:center;justify-content:center;
+  font-size:22px;user-select:none;margin:20px auto
+}
+#circle:active{transform:scale(0.95)}
+.layout{display:flex}
+.menu{width:90px;display:flex;flex-direction:column}
+.main{flex:1;padding:10px}
+.panel{display:none}
+.panel.active{display:block}
+.section{border:1px solid #333;padding:10px;margin:10px 0}
+.popup{
+  background:#222;border:1px solid #555;padding:10px;margin:10px 0
+}
+@media(max-width:600px){
+  .layout{flex-direction:column}
+  .menu{flex-direction:row;width:100%}
+}
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <h2>Login / Register</h2>
+  <input id="user" placeholder="Username">
+  <input id="pass" type="password" placeholder="Password">
+  <label>
+    <input type="checkbox" id="remember"> Remember me
+  </label>
+  <button onclick="doLogin()">Login</button>
+  <button onclick="register()">Register</button>
+</div>
+
+<!-- GAME -->
+<div id="game" class="hidden">
+  <h2 id="welcome"></h2>
+
+  <div class="layout">
+    <div class="menu">
+      <button onclick="showPanel('shop')">Upgrades</button>
+      <button onclick="showPanel('stats')">Stats</button>
+      <button onclick="showPanel('achievements')">Ach</button>
+      <button onclick="showPanel('daily')">Daily</button>
+    </div>
+
+    <div class="main">
+      <div id="offlinePopup" class="popup hidden"></div>
+
+      <div id="circle">CLICK</div>
+      <p id="counter"></p>
+      <p id="cps"></p>
+
+      <!-- SHOP -->
+      <div id="shop" class="panel active">
+        <div class="section">
+          <h3>Click Upgrade</h3>
+          <button id="clickBtn" onclick="buyClickMult()"></button>
+        </div>
+
+        <div class="section">
+          <h3>Auto Clicker</h3>
+          <button id="autoBtn" onclick="buyAuto()"></button>
+          <button id="speedBtn" onclick="buyAutoSpeed()"></button>
+        </div>
+      </div>
+
+      <!-- STATS -->
+      <div id="statsPanel" class="panel">
+        <p>Total Clicks: <span id="totalClicks"></span></p>
+      </div>
+
+      <!-- ACHIEVEMENTS -->
+      <div id="achievementsPanel" class="panel">
+        <p id="achText"></p>
+      </div>
+
+      <!-- DAILY -->
+      <div id="dailyPanel" class="panel">
+        <button id="dailyBtn" onclick="claimDaily()"></button>
+      </div>
+
+      <!-- ADMIN -->
+      <div id="adminPanel" class="section hidden">
+        <h3>Admin</h3>
+        <button onclick="devReset()">Reset Progress</button>
+        <button onclick="give10k()">Give 10K</button>
+      </div>
+
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== STORAGE ===== */
+let users = JSON.parse(localStorage.getItem("users") || "{}");
+let rememberedUser = localStorage.getItem("rememberUser");
+
+/* ===== STATE ===== */
+let currentUser=null;
+let clicks=0,total=0,clickMult=1;
+let auto=0,autoCost=100;
+let autoSpeed=1000,speedCost=250;
+let clickCost=50;
+let lastDaily=0;
+let lastOnline=Date.now();
+
+/* ===== LOGIN ===== */
+function doLogin(){
+  let u=user.value.trim();
+  let p=pass.value;
+  if(!users[u] || users[u].pass!==p){
+    alert("Invalid username or password");
+    return;
+  }
+  if(remember.checked) localStorage.setItem("rememberUser",u);
+  else localStorage.removeItem("rememberUser");
+  loadUser(u);
+}
+function register(){
+  let u=user.value.trim();
+  let p=pass.value;
+  if(users[u]) return alert("User exists");
+  users[u]={pass:p,save:{}};
+  saveUsers();
+  loadUser(u);
+}
+function loadUser(u){
+  currentUser=u;
+  let s=users[u].save||{};
+  clicks=s.clicks||0;
+  total=s.total||0;
+  clickMult=s.clickMult||1;
+  auto=s.auto||0;
+  autoCost=s.autoCost||100;
+  autoSpeed=s.autoSpeed||1000;
+  speedCost=s.speedCost||250;
+  clickCost=s.clickCost||50;
+  lastDaily=s.lastDaily||0;
+  lastOnline=s.lastOnline||Date.now();
+
+  loginScreen.classList.add("hidden");
+  game.classList.remove("hidden");
+  welcome.textContent="Welcome "+u;
+
+  if(u==="John") adminPanel.classList.remove("hidden");
+
+  handleOfflineEarnings();
+  startAuto();
+  update();
+}
+function logout(){
+  save();
+  localStorage.removeItem("rememberUser");
+  location.reload();
+}
+
+/* ===== SAVE ===== */
+function save(){
+  users[currentUser].save={
+    clicks,total,clickMult,auto,
+    autoCost,autoSpeed,speedCost,
+    clickCost,lastDaily,lastOnline:Date.now()
+  };
+  saveUsers();
+}
+function saveUsers(){
+  localStorage.setItem("users",JSON.stringify(users));
+}
+
+/* ===== OFFLINE EARNINGS ===== */
+function handleOfflineEarnings(){
+  let now=Date.now();
+  let diff=Math.min(now-lastOnline,8*60*60*1000); // max 8h
+  let seconds=Math.floor(diff/1000);
+  let earned=seconds*(auto*clickMult);
+  if(earned>0){
+    clicks+=earned;
+    total+=earned;
+    offlinePopup.textContent=`Offline earnings: +${earned} clicks`;
+    offlinePopup.classList.remove("hidden");
+    setTimeout(()=>offlinePopup.classList.add("hidden"),5000);
+  }
+}
+
+/* ===== CLICK ===== */
+circle.onclick=()=>{
+  clicks+=clickMult;
+  total+=clickMult;
+  update();
+}
+
+/* ===== UPGRADES ===== */
+function buyClickMult(){
+  if(clicks<clickCost)return;
+  clicks-=clickCost;
+  clickMult+=1;
+  clickCost=Math.floor(clickCost*1.5);
+  update();
+}
+function buyAuto(){
+  if(clicks<autoCost)return;
+  clicks-=autoCost;
+  auto+=1;
+  autoCost=Math.floor(autoCost*1.7);
+  update();
+}
+function buyAutoSpeed(){
+  if(clicks<speedCost||autoSpeed<=200)return;
+  clicks-=speedCost;
+  autoSpeed-=100;
+  speedCost=Math.floor(speedCost*1.6);
+  startAuto();
+  update();
+}
+
+/* ===== AUTO ===== */
+let autoLoop=null;
+function startAuto(){
+  if(autoLoop) clearInterval(autoLoop);
+  autoLoop=setInterval(()=>{
+    clicks+=auto*clickMult;
+    total+=auto*clickMult;
+    update();
+  },autoSpeed);
+}
+
+/* ===== DAILY ===== */
+function claimDaily(){
+  let now=Date.now();
+  if(now-lastDaily<86400000)return alert("Come back tomorrow");
+  clicks+=500;
+  lastDaily=now;
+  update();
+}
+
+/* ===== ADMIN ===== */
+function devReset(){
+  if(!confirm("Reset progress?"))return;
+  clicks=0;total=0;clickMult=1;
+  auto=0;autoCost=100;autoSpeed=1000;
+  speedCost=250;clickCost=50;
+  update();
+}
+function give10k(){clicks+=10000;update()}
+
+/* ===== UI ===== */
+function update(){
+  counter.textContent="Clicks: "+clicks;
+  cps.textContent="CPS: "+(auto*clickMult);
+  clickBtn.textContent="Upgrade +1 | Cost: "+clickCost;
+  autoBtn.textContent="Auto +1 | Cost: "+autoCost;
+  speedBtn.textContent="Speed Upgrade | Cost: "+speedCost;
+  totalClicks.textContent=total;
+  dailyBtn.textContent="Claim 500 clicks";
+  achText.textContent=total>=1000?"Achievement unlocked!":"Click more!";
+  save();
+}
+function showPanel(p){
+  document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+  if(p==="shop")shop.classList.add("active");
+  if(p==="stats")statsPanel.classList.add("active");
+  if(p==="achievements")achievementsPanel.classList.add("active");
+  if(p==="daily")dailyPanel.classList.add("active");
+}
+
+/* ===== AUTO LOGIN ===== */
+if(rememberedUser && users[rememberedUser]){
+  loadUser(rememberedUser);
+}
+</script>
+</body>
+</html>
